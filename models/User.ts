@@ -4,10 +4,11 @@ import bcrypt from 'bcryptjs';
 export interface IUser {
   name: string;
   email: string;
-  password: string;
+  password?: string;
   phone?: string;
   address?: string;
   role: 'user' | 'admin';
+  isGoogleRegistrationComplete?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,8 +34,15 @@ const UserSchema = new Schema<IUser, {}, IUserMethods>(
     },
     password: {
       type: String,
-      required: [true, 'Vui lòng nhập mật khẩu'],
-      minlength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
+      required: false,
+      validate: {
+        validator: function(v: string) {
+          // Chỉ validate nếu password được cung cấp
+          if (!v || v.length === 0) return true;
+          return v.length >= 6;
+        },
+        message: 'Mật khẩu phải có ít nhất 6 ký tự'
+      },
       select: false,
     },
     phone: {
@@ -50,6 +58,10 @@ const UserSchema = new Schema<IUser, {}, IUserMethods>(
       enum: ['user', 'admin'],
       default: 'user',
     },
+    isGoogleRegistrationComplete: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
@@ -58,7 +70,7 @@ const UserSchema = new Schema<IUser, {}, IUserMethods>(
 
 // Hash password before saving
 UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
 
@@ -69,6 +81,9 @@ UserSchema.pre('save', async function (next) {
 
 // Compare password method
 UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  if (!this.password) {
+    return false;
+  }
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

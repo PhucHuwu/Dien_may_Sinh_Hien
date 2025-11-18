@@ -1,11 +1,16 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
+import Google from 'next-auth/providers/google'
 import dbConnect from '@/lib/mongodb'
 import User from '@/models/User'
 import bcrypt from 'bcryptjs'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -43,10 +48,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      try {
+        // Xử lý đăng nhập bằng Google
+        if (account?.provider === 'google') {
+          await dbConnect()
+
+          // Kiểm tra xem user đã tồn tại chưa
+          let existingUser = await User.findOne({ email: user.email })
+
+          if (!existingUser) {
+            // Tạo user tạm thời, đánh dấu chưa hoàn tất đăng ký
+            const newUser = new User({
+              email: user.email,
+              name: user.name,
+              role: 'user',
+              isGoogleRegistrationComplete: false,
+            })
+            existingUser = await newUser.save({ validateBeforeSave: false })
+          }
+
+          // Gắn ID và các thông tin vào object user
+          user.id = existingUser._id.toString()
+          ;(user as any).role = existingUser.role
+          ;(user as any).isGoogleRegistrationComplete = existingUser.isGoogleRegistrationComplete
+        }
+
+        return true
+      } catch (error) {
+        console.error('SignIn callback error:', error)
+        return false
+      }
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
         token.role = (user as any).role
+        token.isGoogleRegistrationComplete = (user as any).isGoogleRegistrationComplete
       }
       return token
     },
@@ -54,6 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         (session.user as any).id = token.id as string
         (session.user as any).role = token.role as string
+        (session.user as any).isGoogleRegistrationComplete = token.isGoogleRegistrationComplete as boolean
       }
       return session
     },

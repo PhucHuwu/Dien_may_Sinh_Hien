@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/contexts/CartContext'
 import { SessionProvider } from '@/components/SessionProvider'
+import { GoogleRegistrationChecker } from '@/components/google-registration-checker'
 import { Toaster } from 'sonner'
 import './globals.css'
 
@@ -41,10 +42,12 @@ export default function RootLayout({
     <html lang="vi">
       <body className={`font-sans antialiased`}>
         <SessionProvider>
-          <CartProvider>
-            {children}
-            <Toaster position="top-right" richColors />
-          </CartProvider>
+          <GoogleRegistrationChecker>
+            <CartProvider>
+              {children}
+              <Toaster position="top-right" richColors />
+            </CartProvider>
+          </GoogleRegistrationChecker>
         </SessionProvider>
         <Analytics />
       </body>
