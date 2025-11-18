@@ -5,56 +5,64 @@ import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Eye, Download, RotateCcw } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-const orders = [
-  {
-    id: 'ORD-2024-001',
-    date: '2024-01-15',
-    total: '25,999,000',
-    status: 'Đã giao',
-    statusColor: 'bg-green-100 text-green-800',
-    items: 3,
-    image: '/modern-laptop-workspace.png',
-  },
-  {
-    id: 'ORD-2024-002',
-    date: '2024-01-10',
-    total: '45,998,000',
-    status: 'Đang giao',
-    statusColor: 'bg-blue-100 text-blue-800',
-    items: 2,
-    image: '/modern-smartphone.png',
-  },
-  {
-    id: 'ORD-2024-003',
-    date: '2024-01-08',
-    total: '3,999,000',
-    status: 'Đang xử lý',
-    statusColor: 'bg-yellow-100 text-yellow-800',
-    items: 1,
-    image: '/diverse-people-listening-headphones.png',
-  },
-  {
-    id: 'ORD-2024-004',
-    date: '2024-01-05',
-    total: '8,999,000',
-    status: 'Đã hủy',
-    statusColor: 'bg-red-100 text-red-800',
-    items: 1,
-    image: '/modern-tablet-display.png',
-  },
-]
+interface Order {
+  _id: string
+  orderItems: Array<{
+    name: string
+    image: string
+  }>
+  totalPrice: number
+  status: string
+  createdAt: string
+  isPaid: boolean
+  isDelivered: boolean
+}
+
+const getStatusInfo = (status: string) => {
+  const statusMap: Record<string, { label: string; color: string }> = {
+    pending: { label: 'Đang xử lý', color: 'bg-yellow-100 text-yellow-800' },
+    processing: { label: 'Đang xử lý', color: 'bg-yellow-100 text-yellow-800' },
+    shipped: { label: 'Đang giao', color: 'bg-blue-100 text-blue-800' },
+    delivered: { label: 'Đã giao', color: 'bg-green-100 text-green-800' },
+    cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-800' },
+  }
+  return statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800' }
+}
 
 export default function OrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true)
+        // Note: Trong thực tế cần có userId từ authentication
+        const response = await fetch('/api/orders')
+        const result = await response.json()
+
+        if (result.success) {
+          setOrders(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching orders:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [])
 
   const filteredOrders = orders.filter((order) => {
     if (filter === 'all') return true
     if (filter === 'pending')
-      return order.status === 'Đang xử lý' || order.status === 'Đang giao'
-    if (filter === 'completed') return order.status === 'Đã giao'
-    if (filter === 'cancelled') return order.status === 'Đã hủy'
+      return order.status === 'pending' || order.status === 'processing' || order.status === 'shipped'
+    if (filter === 'completed') return order.status === 'delivered'
+    if (filter === 'cancelled') return order.status === 'cancelled'
     return true
   })
 
@@ -89,7 +97,22 @@ export default function OrdersPage() {
           </div>
 
           {/* Orders List */}
-          {filteredOrders.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-card rounded-lg p-6 animate-pulse">
+                  <div className="flex gap-4">
+                    <div className="w-24 h-24 bg-muted rounded-lg" />
+                    <div className="flex-1 space-y-3">
+                      <div className="h-4 bg-muted rounded w-1/4" />
+                      <div className="h-6 bg-muted rounded w-1/3" />
+                      <div className="h-4 bg-muted rounded w-1/2" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <div className="bg-card rounded-lg p-12 text-center">
               <p className="text-muted-foreground mb-4">Không có đơn hàng nào</p>
               <Link href="/products">
@@ -100,55 +123,65 @@ export default function OrdersPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="bg-card rounded-lg p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between"
-                >
-                  <div className="flex gap-4 flex-1">
-                    <img
-                      src={order.image || "/placeholder.svg"}
-                      alt={order.id}
-                      className="w-24 h-24 object-cover rounded-lg"
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">Mã đơn hàng</p>
-                      <p className="font-bold text-lg mb-2">{order.id}</p>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {order.date} • {order.items} sản phẩm
-                      </p>
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${order.statusColor}`}
-                      >
-                        {order.status}
-                      </span>
-                    </div>
-                  </div>
+              {filteredOrders.map((order) => {
+                const statusInfo = getStatusInfo(order.status)
+                const firstItem = order.orderItems[0]
+                const orderDate = new Date(order.createdAt).toLocaleDateString('vi-VN')
 
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm text-muted-foreground">Tổng tiền</p>
-                    <p className="text-2xl font-bold text-primary mb-4">{order.total}đ</p>
-                    <div className="flex gap-2 flex-col sm:flex-row">
-                      <Button variant="outline" size="sm" className="flex items-center gap-2">
-                        <Eye className="w-4 h-4" />
-                        Chi tiết
-                      </Button>
-                      {order.status === 'Đã giao' && (
+                return (
+                  <div
+                    key={order._id}
+                    className="bg-card rounded-lg p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between"
+                  >
+                    <div className="flex gap-4 flex-1">
+                      <img
+                        src={firstItem?.image || "/placeholder.svg"}
+                        alt={firstItem?.name || "Order"}
+                        className="w-24 h-24 object-cover rounded-lg"
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground">Mã đơn hàng</p>
+                        <p className="font-bold text-lg mb-2">
+                          #{order._id.slice(-8).toUpperCase()}
+                        </p>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {orderDate} • {order.orderItems.length} sản phẩm
+                        </p>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}
+                        >
+                          {statusInfo.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm text-muted-foreground">Tổng tiền</p>
+                      <p className="text-2xl font-bold text-primary mb-4">
+                        {order.totalPrice.toLocaleString('vi-VN')}đ
+                      </p>
+                      <div className="flex gap-2 flex-col sm:flex-row">
                         <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <Download className="w-4 h-4" />
-                          Hóa đơn
+                          <Eye className="w-4 h-4" />
+                          Chi tiết
                         </Button>
-                      )}
-                      {order.status === 'Đang giao' && (
-                        <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <RotateCcw className="w-4 h-4" />
-                          Hủy đơn
-                        </Button>
-                      )}
+                        {order.status === 'delivered' && (
+                          <Button variant="outline" size="sm" className="flex items-center gap-2">
+                            <Download className="w-4 h-4" />
+                            Hóa đơn
+                          </Button>
+                        )}
+                        {order.status === 'shipped' && (
+                          <Button variant="outline" size="sm" className="flex items-center gap-2">
+                            <RotateCcw className="w-4 h-4" />
+                            Hủy đơn
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

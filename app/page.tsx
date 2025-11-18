@@ -5,55 +5,44 @@ import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Star, Zap, Shield } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
-const featuredProducts = [
-  {
-    id: 1,
-    name: 'Laptop Pro X1',
-    price: '25,999,000',
-    originalPrice: '32,999,000',
-    discount: '21%',
-    image: '/laptop-modern.jpg',
-    category: 'Laptop',
-    rating: 4.8,
-    reviews: 245,
-  },
-  {
-    id: 2,
-    name: 'Smartphone Ultra',
-    price: '12,999,000',
-    originalPrice: '15,999,000',
-    discount: '19%',
-    image: '/smartphone-modern.jpg',
-    category: 'Điện thoại',
-    rating: 4.7,
-    reviews: 189,
-  },
-  {
-    id: 3,
-    name: 'Headphones Elite',
-    price: '3,999,000',
-    originalPrice: '5,999,000',
-    discount: '33%',
-    image: '/headphones-audio.jpg',
-    category: 'Tai nghe',
-    rating: 4.9,
-    reviews: 312,
-  },
-  {
-    id: 4,
-    name: 'Tablet Max',
-    price: '8,999,000',
-    originalPrice: '11,999,000',
-    discount: '25%',
-    image: '/tablet-device.jpg',
-    category: 'Máy tính bảng',
-    rating: 4.6,
-    reviews: 156,
-  },
-]
+interface Product {
+  _id: string
+  name: string
+  price: number
+  originalPrice: number
+  discount?: string
+  image: string
+  category: string
+  rating: number
+  reviews: number
+}
 
 export default function Home() {
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/products?sortBy=rating')
+        const result = await response.json()
+
+        if (result.success) {
+          // Lấy 4 sản phẩm có rating cao nhất
+          setFeaturedProducts(result.data.slice(0, 4))
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [])
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -123,45 +112,63 @@ export default function Home() {
             Sản phẩm nổi bật
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <Link key={product.id} href={`/products/${product.id}`}>
-                <div className="bg-card rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer h-full">
-                  <div className="relative bg-muted h-64 flex items-center justify-center overflow-hidden group">
-                    <img
-                      src={product.image || "/placeholder.svg"}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition"
-                    />
-                    {product.discount && (
-                      <div className="absolute top-4 right-4 bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm font-semibold">
-                        -{product.discount}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm text-muted-foreground mb-2">{product.category}</p>
-                    <h3 className="font-semibold text-lg mb-3 line-clamp-2 text-card-foreground">
-                      {product.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-accent text-accent" />
-                        <span className="text-sm font-semibold">{product.rating}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">({product.reviews})</span>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-bold text-primary">{product.price}đ</span>
-                      <span className="text-sm text-muted-foreground line-through">
-                        {product.originalPrice}đ
-                      </span>
-                    </div>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-card rounded-lg overflow-hidden h-full animate-pulse">
+                  <div className="bg-muted h-64" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 bg-muted rounded w-1/4" />
+                    <div className="h-6 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
+                    <div className="h-6 bg-muted rounded w-1/3" />
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                <Link key={product._id} href={`/products/${product._id}`}>
+                  <div className="bg-card rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer h-full">
+                    <div className="relative bg-muted h-64 flex items-center justify-center overflow-hidden group">
+                      <img
+                        src={product.image || "/placeholder.svg"}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition"
+                      />
+                      {product.discount && (
+                        <div className="absolute top-4 right-4 bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm font-semibold">
+                          -{product.discount}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <p className="text-sm text-muted-foreground mb-2">{product.category}</p>
+                      <h3 className="font-semibold text-lg mb-3 line-clamp-2 text-card-foreground">
+                        {product.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 fill-accent text-accent" />
+                          <span className="text-sm font-semibold">{product.rating}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">({product.reviews})</span>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-primary">
+                          {product.price.toLocaleString('vi-VN')}đ
+                        </span>
+                        <span className="text-sm text-muted-foreground line-through">
+                          {product.originalPrice.toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

@@ -4,111 +4,57 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import Link from 'next/link'
 import { Star, Filter, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
-const products = [
-  {
-    id: 1,
-    name: 'Laptop Pro X1',
-    price: '25,999,000',
-    originalPrice: '32,999,000',
-    discount: '21%',
-    image: '/laptop-modern.jpg',
-    category: 'Laptop',
-    rating: 4.8,
-    reviews: 245,
-  },
-  {
-    id: 2,
-    name: 'Smartphone Ultra',
-    price: '12,999,000',
-    originalPrice: '15,999,000',
-    discount: '19%',
-    image: '/smartphone-modern.jpg',
-    category: 'Điện thoại',
-    rating: 4.7,
-    reviews: 189,
-  },
-  {
-    id: 3,
-    name: 'Headphones Elite',
-    price: '3,999,000',
-    originalPrice: '5,999,000',
-    discount: '33%',
-    image: '/headphones-audio.jpg',
-    category: 'Tai nghe',
-    rating: 4.9,
-    reviews: 312,
-  },
-  {
-    id: 4,
-    name: 'Tablet Max',
-    price: '8,999,000',
-    originalPrice: '11,999,000',
-    discount: '25%',
-    image: '/tablet-device.jpg',
-    category: 'Máy tính bảng',
-    rating: 4.6,
-    reviews: 156,
-  },
-  {
-    id: 5,
-    name: 'Smart Watch Pro',
-    price: '4,999,000',
-    originalPrice: '6,999,000',
-    discount: '29%',
-    image: '/smartwatch-tech.jpg',
-    category: 'Đồng hồ thông minh',
-    rating: 4.5,
-    reviews: 98,
-  },
-  {
-    id: 6,
-    name: 'Camera 4K Ultra',
-    price: '18,999,000',
-    originalPrice: '24,999,000',
-    discount: '24%',
-    image: '/camera-professional.jpg',
-    category: 'Camera',
-    rating: 4.9,
-    reviews: 267,
-  },
-  {
-    id: 7,
-    name: 'Gaming Mouse RGB',
-    price: '1,499,000',
-    originalPrice: '1,999,000',
-    discount: '25%',
-    image: '/mouse-gaming.jpg',
-    category: 'Phụ kiện',
-    rating: 4.7,
-    reviews: 134,
-  },
-  {
-    id: 8,
-    name: 'Mechanical Keyboard',
-    price: '2,999,000',
-    originalPrice: '3,999,000',
-    discount: '25%',
-    image: '/keyboard-mechanical.jpg',
-    category: 'Phụ kiện',
-    rating: 4.8,
-    reviews: 201,
-  },
-]
+interface Product {
+  _id: string
+  name: string
+  price: number
+  originalPrice: number
+  discount?: string
+  image: string
+  category: string
+  rating: number
+  reviews: number
+}
 
-const categories = ['Tất cả', 'Laptop', 'Điện thoại', 'Tai nghe', 'Máy tính bảng', 'Phụ kiện']
+const categories = ['Tất cả', 'Laptop', 'Điện thoại', 'Tai nghe', 'Máy tính bảng', 'Đồng hồ thông minh', 'Camera', 'Phụ kiện']
 
 export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('Tất cả')
   const [sortBy, setSortBy] = useState('newest')
   const [showMobileFilter, setShowMobileFilter] = useState(false)
 
-  const filteredProducts =
-    selectedCategory === 'Tất cả'
-      ? products
-      : products.filter((p) => p.category === selectedCategory)
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true)
+        const query = new URLSearchParams()
+        if (selectedCategory !== 'Tất cả') {
+          query.append('category', selectedCategory)
+        }
+        query.append('sortBy', sortBy)
+
+        const response = await fetch(`/api/products?${query.toString()}`)
+        const result = await response.json()
+
+        if (result.success) {
+          setProducts(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [selectedCategory, sortBy])
+
+  const filteredProducts = products
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -218,45 +164,63 @@ export default function ProductsPage() {
               </div>
 
               {/* Products Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => (
-                  <Link key={product.id} href={`/products/${product.id}`}>
-                    <div className="bg-card rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer h-full">
-                      <div className="relative bg-muted h-64 flex items-center justify-center overflow-hidden group">
-                        <img
-                          src={product.image || "/placeholder.svg"}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition"
-                        />
-                        {product.discount && (
-                          <div className="absolute top-4 right-4 bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm font-semibold">
-                            -{product.discount}
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <p className="text-sm text-muted-foreground mb-2">{product.category}</p>
-                        <h3 className="font-semibold text-lg mb-3 line-clamp-2">
-                          {product.name}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="flex items-center gap-1">
-                            <Star className="w-4 h-4 fill-accent text-accent" />
-                            <span className="text-sm font-semibold">{product.rating}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">({product.reviews})</span>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-bold text-primary">{product.price}đ</span>
-                          <span className="text-sm text-muted-foreground line-through">
-                            {product.originalPrice}đ
-                          </span>
-                        </div>
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="bg-card rounded-lg overflow-hidden h-full animate-pulse">
+                      <div className="bg-muted h-64" />
+                      <div className="p-4 space-y-3">
+                        <div className="h-4 bg-muted rounded w-1/4" />
+                        <div className="h-6 bg-muted rounded w-3/4" />
+                        <div className="h-4 bg-muted rounded w-1/2" />
+                        <div className="h-6 bg-muted rounded w-1/3" />
                       </div>
                     </div>
-                  </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProducts.map((product) => (
+                    <Link key={product._id} href={`/products/${product._id}`}>
+                      <div className="bg-card rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer h-full">
+                        <div className="relative bg-muted h-64 flex items-center justify-center overflow-hidden group">
+                          <img
+                            src={product.image || "/placeholder.svg"}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition"
+                          />
+                          {product.discount && (
+                            <div className="absolute top-4 right-4 bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm font-semibold">
+                              -{product.discount}
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <p className="text-sm text-muted-foreground mb-2">{product.category}</p>
+                          <h3 className="font-semibold text-lg mb-3 line-clamp-2">
+                            {product.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 fill-accent text-accent" />
+                              <span className="text-sm font-semibold">{product.rating}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground">({product.reviews})</span>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-bold text-primary">
+                              {product.price.toLocaleString('vi-VN')}đ
+                            </span>
+                            <span className="text-sm text-muted-foreground line-through">
+                              {product.originalPrice.toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

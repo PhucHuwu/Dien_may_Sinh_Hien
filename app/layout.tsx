@@ -1,13 +1,15 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { CartProvider } from '@/contexts/CartContext'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'TechStore - Mua sắm Thiết bị Điện tử',
+  title: 'Điện Máy Sinh Hiền - Mua sắm Thiết bị Điện tử',
   description: 'Cửa hàng bán thiết bị điện tử chất lượng cao với giá tốt nhất',
   generator: 'v0.app',
   icons: {
@@ -37,7 +39,10 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={`font-sans antialiased`}>
-        {children}
+        <CartProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+        </CartProvider>
         <Analytics />
       </body>
     </html>

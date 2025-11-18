@@ -4,56 +4,110 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { Star, Heart, Share2, ShoppingCart, Minus, Plus, Truck, Shield } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useParams, useRouter } from 'next/navigation'
+import { useCart } from '@/contexts/CartContext'
+import { toast } from 'sonner'
 
-const productData = {
-  id: 1,
-  name: 'Laptop Pro X1 - Hiệu năng đỉnh cao',
-  brand: 'TechBrand',
-  category: 'Laptop',
-  price: '25,999,000',
-  originalPrice: '32,999,000',
-  discount: '21%',
-  rating: 4.8,
-  reviews: 245,
-  warranty: 24,
-  stock: 15,
-  images: [
-    '/laptop-modern-front.jpg',
-    '/laptop-modern-side.jpg',
-    '/laptop-modern-back.jpg',
-    '/laptop-screen.jpg',
-  ],
-  description:
-    'Laptop Pro X1 là sự lựa chọn hoàn hảo cho những ai tìm kiếm hiệu năng cao và thiết kế tinh tế. Với bộ xử lý mới nhất, pin trâu, và màn hình độ phân giải cao, laptop này sẽ đáp ứng mọi nhu cầu công việc và giải trí của bạn.',
-  specifications: [
-    { label: 'CPU', value: 'Intel Core i7-13th Gen' },
-    { label: 'RAM', value: '16GB DDR5' },
-    { label: 'Storage', value: '512GB SSD NVMe' },
-    { label: 'Display', value: '15.6" 4K IPS 120Hz' },
-    { label: 'GPU', value: 'NVIDIA RTX 4060' },
-    { label: 'Pin', value: '6000mAh (20+ giờ)' },
-    { label: 'Trọng lượng', value: '1.8kg' },
-    { label: 'OS', value: 'Windows 11 Pro' },
-  ],
-  highlights: [
-    'Hiệu năng cao cho gaming và professional work',
-    'Màn hình 4K sắc nét với tần số quét 120Hz',
-    'Pin trâu lên tới 20+ giờ',
-    'Thiết kế mỏng nhẹ, dễ mang theo',
-    'Bảo hành chính hãng 24 tháng',
-  ],
+interface Product {
+  _id: string
+  name: string
+  price: number
+  originalPrice: number
+  discount?: string
+  image: string
+  category: string
+  rating: number
+  reviews: number
+  description?: string
+  specifications?: Record<string, string>
+  stock: number
 }
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
+export default function ProductDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const { addItem } = useCart()
+  const [product, setProduct] = useState<Product | null>(null)
+  const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [isWishlisted, setIsWishlisted] = useState(false)
 
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/products/${params.id}`)
+        const result = await response.json()
+
+        if (result.success) {
+          setProduct(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching product:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (params.id) {
+      fetchProduct()
+    }
+  }, [params.id])
+
   const handleAddToCart = () => {
-    alert(`Đã thêm ${quantity} sản phẩm vào giỏ hàng`)
+    if (!product) return
+
+    addItem({
+      _id: product._id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      stock: product.stock,
+      quantity: quantity,
+    })
+
+    toast.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng`)
   }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Không tìm thấy sản phẩm</h1>
+            <Link href="/products">
+              <Button>Quay lại trang sản phẩm</Button>
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Convert specifications object to array
+  const specifications = product.specifications
+    ? Object.entries(product.specifications).map(([label, value]) => ({ label, value }))
+    : []
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -71,7 +125,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
               Sản phẩm
             </Link>
             <span>/</span>
-            <span className="text-foreground">{productData.name}</span>
+            <span className="text-foreground">{product.name}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
@@ -79,23 +133,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             <div>
               <div className="bg-muted rounded-lg mb-4 h-96 md:h-full overflow-hidden flex items-center justify-center">
                 <img
-                  src={productData.images[selectedImage] || "/placeholder.svg"}
-                  alt={productData.name}
+                  src={product.image || "/placeholder.svg"}
+                  alt={product.name}
                   className="w-full h-full object-cover"
                 />
-              </div>
-              <div className="flex gap-2 overflow-x-auto">
-                {productData.images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedImage(idx)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition ${
-                      selectedImage === idx ? 'border-primary' : 'border-input'
-                    }`}
-                  >
-                    <img src={img || "/placeholder.svg"} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
               </div>
             </div>
 
@@ -104,15 +145,14 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
               <div className="mb-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">{productData.category}</p>
+                    <p className="text-sm text-muted-foreground mb-2">{product.category}</p>
                     <h1 className="text-2xl md:text-3xl font-bold text-balance mb-2">
-                      {productData.name}
+                      {product.name}
                     </h1>
-                    <p className="text-sm text-muted-foreground">Hãng: {productData.brand}</p>
                   </div>
-                  {productData.discount && (
+                  {product.discount && (
                     <div className="bg-destructive text-destructive-foreground px-4 py-2 rounded-lg font-semibold">
-                      -{productData.discount}
+                      -{product.discount}
                     </div>
                   )}
                 </div>
@@ -125,16 +165,16 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                         <Star
                           key={i}
                           className={`w-5 h-5 ${
-                            i < Math.floor(productData.rating)
+                            i < Math.floor(product.rating)
                               ? 'fill-accent text-accent'
                               : 'text-border'
                           }`}
                         />
                       ))}
                     </div>
-                    <span className="font-semibold">{productData.rating}</span>
+                    <span className="font-semibold">{product.rating}</span>
                   </div>
-                  <span className="text-muted-foreground">({productData.reviews} đánh giá)</span>
+                  <span className="text-muted-foreground">({product.reviews} đánh giá)</span>
                 </div>
               </div>
 
@@ -142,10 +182,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
               <div className="mb-6 pb-6 border-b border-border">
                 <div className="flex items-baseline gap-3 mb-2">
                   <span className="text-3xl md:text-4xl font-bold text-primary">
-                    {productData.price}đ
+                    {product.price.toLocaleString('vi-VN')}đ
                   </span>
                   <span className="text-lg text-muted-foreground line-through">
-                    {productData.originalPrice}đ
+                    {product.originalPrice.toLocaleString('vi-VN')}đ
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">Giá đã bao gồm VAT</p>
@@ -155,7 +195,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
               <div className="mb-6 pb-6 border-b border-border space-y-3">
                 <div className="flex items-center gap-3">
                   <Shield className="w-5 h-5 text-primary" />
-                  <span className="text-sm">Bảo hành {productData.warranty} tháng chính hãng</span>
+                  <span className="text-sm">Bảo hành 24 tháng chính hãng</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Truck className="w-5 h-5 text-primary" />
@@ -163,8 +203,8 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-sm">
-                    {productData.stock > 0 ? (
-                      <span className="text-green-600">Còn {productData.stock} sản phẩm</span>
+                    {product.stock > 0 ? (
+                      <span className="text-green-600">Còn {product.stock} sản phẩm</span>
                     ) : (
                       <span className="text-red-600">Hết hàng</span>
                     )}
@@ -180,13 +220,15 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
                       className="p-2 hover:bg-muted"
+                      disabled={quantity <= 1}
                     >
                       <Minus className="w-4 h-4" />
                     </button>
                     <span className="px-6 py-2 font-semibold">{quantity}</span>
                     <button
-                      onClick={() => setQuantity(quantity + 1)}
+                      onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
                       className="p-2 hover:bg-muted"
+                      disabled={quantity >= product.stock}
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -196,7 +238,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 <div className="flex gap-3">
                   <Button
                     onClick={handleAddToCart}
-                    disabled={productData.stock === 0}
+                    disabled={product.stock === 0}
                     className="flex-1 bg-primary text-primary-foreground hover:opacity-90 flex items-center justify-center gap-2"
                   >
                     <ShoppingCart className="w-5 h-5" />
@@ -221,42 +263,31 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             </div>
           </div>
 
-          {/* Specifications & Highlights */}
+          {/* Specifications & Description */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Thông số kỹ thuật</h2>
-              <div className="space-y-3">
-                {productData.specifications.map((spec, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between py-3 border-b border-border"
-                  >
-                    <span className="font-medium text-muted-foreground">{spec.label}</span>
-                    <span className="font-semibold">{spec.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Điểm nổi bật</h2>
-              <ul className="space-y-3">
-                {productData.highlights.map((highlight, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center mt-1">
-                      <span className="text-xs font-bold">✓</span>
+            {specifications.length > 0 && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">Thông số kỹ thuật</h2>
+                <div className="space-y-3">
+                  {specifications.map((spec, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between py-3 border-b border-border"
+                    >
+                      <span className="font-medium text-muted-foreground">{spec.label}</span>
+                      <span className="font-semibold">{spec.value}</span>
                     </div>
-                    <span>{highlight}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          {/* Description */}
-          <div className="mt-12 pt-12 border-t border-border">
-            <h2 className="text-2xl font-bold mb-4">Mô tả sản phẩm</h2>
-            <p className="text-muted-foreground leading-relaxed">{productData.description}</p>
+            {product.description && (
+              <div>
+                <h2 className="text-2xl font-bold mb-6">Mô tả sản phẩm</h2>
+                <p className="text-muted-foreground leading-relaxed">{product.description}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

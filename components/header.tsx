@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { ShoppingCart, User, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useCart } from '@/contexts/CartContext'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { totalItems } = useCart()
 
   return (
     <header className="bg-white border-b border-border sticky top-0 z-40">
@@ -34,9 +36,11 @@ export function Header() {
           <div className="flex items-center gap-4">
             <Link href="/cart" className="relative">
               <ShoppingCart className="w-6 h-6 text-foreground hover:text-primary transition" />
-              <span className="absolute -top-2 -right-2 bg-accent text-accent-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                0
-              </span>
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-accent text-accent-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
             </Link>
             <Link href="/auth/login">
               <Button variant="outline" size="sm" className="hidden sm:flex">
