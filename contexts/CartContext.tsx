@@ -1,6 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useSession } from 'next-auth/react'
+import { toast } from 'sonner'
 
 export interface CartItem {
   _id: string
@@ -13,80 +15,155 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[]
-  addItem: (product: Omit<CartItem, 'quantity'> & { quantity?: number }) => void
-  removeItem: (id: string) => void
-  updateQuantity: (id: string, quantity: number) => void
+  addItem: (product: Omit<CartItem, 'quantity'> & { quantity?: number }) => Promise<void>
+  removeItem: (id: string) => Promise<void>
+  updateQuantity: (id: string, quantity: number) => Promise<void>
   clearCart: () => void
   totalItems: number
   totalPrice: number
+  isLoading: boolean
+  refreshCart: () => Promise<void>
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const { data: session, status } = useSession()
 
-  // Load cart from localStorage on mount
-  useEffect(() => {
-    const savedCart = localStorage.getItem('cart')
-    if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart))
-      } catch (error) {
-        console.error('Error loading cart:', error)
+  // Fetch cart from API when user is authenticated
+  const fetchCart = async () => {
+    if (status !== 'authenticated') {
+      setItems([])
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/cart')
+      const result = await response.json()
+
+      if (result.success) {
+        // Map items để có đúng định dạng CartItem
+        const cartItems = result.data.items.map((item: any) => ({
+          _id: item.product.toString(),
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image,
+          stock: item.stock,
+        }))
+        setItems(cartItems)
       }
+    } catch (error) {
+      console.error('Error fetching cart:', error)
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoaded(true)
-  }, [])
+  }
 
-  // Save cart to localStorage whenever it changes
+  // Load cart when session changes
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('cart', JSON.stringify(items))
+    fetchCart()
+  }, [status])
+
+  const addItem = async (product: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
+    if (status !== 'authenticated') {
+      toast.error('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng')
+      return
     }
-  }, [items, isLoaded])
 
-  const addItem = (product: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
-    setItems((currentItems) => {
-      const existingItem = currentItems.find((item) => item._id === product._id)
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId: product._id,
+          quantity: product.quantity || 1,
+        }),
+      })
 
-      if (existingItem) {
-        // Update quantity if item exists
-        return currentItems.map((item) =>
-          item._id === product._id
-            ? { ...item, quantity: item.quantity + (product.quantity || 1) }
-            : item
-        )
+      const result = await response.json()
+
+      if (result.success) {
+        await fetchCart() // Refresh cart
+        return
       } else {
-        // Add new item
-        return [
-          ...currentItems,
-          {
-            _id: product._id,
-            name: product.name,
-            price: product.price,
-            quantity: product.quantity || 1,
-            image: product.image,
-            stock: product.stock,
-          },
-        ]
+        toast.error(result.message || 'Không thể thêm sản phẩm vào giỏ hàng')
       }
-    })
+    } catch (error) {
+      console.error('Error adding to cart:', error)
+      toast.error('Lỗi khi thêm sản phẩm vào giỏ hàng')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const removeItem = (id: string) => {
-    setItems((currentItems) => currentItems.filter((item) => item._id !== id))
+  const removeItem = async (id: string) => {
+    if (status !== 'authenticated') {
+      toast.error('Vui lòng đăng nhập')
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/cart?productId=${id}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        await fetchCart() // Refresh cart
+      } else {
+        toast.error(result.message || 'Không thể xóa sản phẩm')
+      }
+    } catch (error) {
+      console.error('Error removing from cart:', error)
+      toast.error('Lỗi khi xóa sản phẩm')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = async (id: string, quantity: number) => {
+    if (status !== 'authenticated') {
+      toast.error('Vui lòng đăng nhập')
+      return
+    }
+
     if (quantity < 1) return
 
-    setItems((currentItems) =>
-      currentItems.map((item) =>
-        item._id === id ? { ...item, quantity: Math.min(quantity, item.stock) } : item
-      )
-    )
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/cart', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId: id,
+          quantity,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        await fetchCart() // Refresh cart
+      } else {
+        toast.error(result.message || 'Không thể cập nhật số lượng')
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error)
+      toast.error('Lỗi khi cập nhật số lượng')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const clearCart = () => {
@@ -106,6 +183,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         totalItems,
         totalPrice,
+        isLoading,
+        refreshCart: fetchCart,
       }}
     >
       {children}

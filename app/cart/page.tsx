@@ -6,9 +6,39 @@ import { Button } from '@/components/ui/button'
 import { Trash2, Plus, Minus } from 'lucide-react'
 import Link from 'next/link'
 import { useCart } from '@/contexts/CartContext'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, totalPrice } = useCart()
+  const { items, removeItem, updateQuantity, totalPrice, isLoading } = useCart()
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/login')
+    }
+  }, [status, router])
+
+  // Show loading state
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-lg text-muted-foreground">Đang tải giỏ hàng...</p>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (!session) {
+    return null
+  }
 
   const subtotal = totalPrice
   const shipping = 0

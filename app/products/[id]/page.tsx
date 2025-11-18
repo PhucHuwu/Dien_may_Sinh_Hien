@@ -57,10 +57,10 @@ export default function ProductDetailPage() {
     }
   }, [params.id])
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return
 
-    addItem({
+    await addItem({
       _id: product._id,
       name: product.name,
       price: product.price,
