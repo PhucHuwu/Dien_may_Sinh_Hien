@@ -5,9 +5,13 @@ import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { signIn } from 'next-auth/react'
+import { toast } from 'sonner'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -16,8 +20,27 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // TODO: Implement login logic
-    setTimeout(() => setIsLoading(false), 1000)
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Đăng nhập thành công!')
+        router.push('/')
+        router.refresh()
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      toast.error('Có lỗi xảy ra, vui lòng thử lại')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

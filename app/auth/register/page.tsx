@@ -5,9 +5,12 @@ import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Mail, Lock, User, Phone, Eye, EyeOff } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     fullname: '',
     email: '',
@@ -26,13 +29,49 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     if (formData.password !== formData.confirmPassword) {
-      alert('Mật khẩu không trùng khớp')
+      toast.error('Mật khẩu không trùng khớp')
       return
     }
+
+    if (formData.password.length < 6) {
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự')
+      return
+    }
+
     setIsLoading(true)
-    // TODO: Implement register logic
-    setTimeout(() => setIsLoading(false), 1000)
+
+    try {
+      const response = await fetch('/api/users/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.fullname,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Đăng ký thành công! Đang chuyển đến trang đăng nhập...')
+        setTimeout(() => {
+          router.push('/auth/login')
+        }, 1500)
+      } else {
+        toast.error(result.message || 'Đăng ký thất bại')
+      }
+    } catch (error) {
+      console.error('Registration error:', error)
+      toast.error('Có lỗi xảy ra, vui lòng thử lại')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

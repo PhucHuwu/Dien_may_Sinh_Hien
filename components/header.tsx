@@ -1,14 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { ShoppingCart, User, Menu, X } from 'lucide-react'
+import { ShoppingCart, User, Menu, X, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useCart } from '@/contexts/CartContext'
+import { useSession, signOut } from 'next-auth/react'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { totalItems } = useCart()
+  const { data: session } = useSession()
 
   return (
     <header className="bg-white border-b border-border sticky top-0 z-40">
@@ -42,12 +44,30 @@ export function Header() {
                 </span>
               )}
             </Link>
-            <Link href="/auth/login">
-              <Button variant="outline" size="sm" className="hidden sm:flex">
-                <User className="w-4 h-4 mr-2" />
-                Đăng nhập
-              </Button>
-            </Link>
+            {session?.user ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link href="/profile">
+                  <Button variant="outline" size="sm">
+                    <User className="w-4 h-4 mr-2" />
+                    {session.user.name || 'Profile'}
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Link href="/auth/login">
+                <Button variant="outline" size="sm" className="hidden sm:flex">
+                  <User className="w-4 h-4 mr-2" />
+                  Đăng nhập
+                </Button>
+              </Link>
+            )}
             <button
               className="md:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -82,6 +102,32 @@ export function Header() {
             >
               Về chúng tôi
             </Link>
+            {session?.user ? (
+              <>
+                <Link
+                  href="/profile"
+                  className="block px-4 py-2 text-foreground hover:bg-muted rounded transition"
+                >
+                  <User className="w-4 h-4 inline mr-2" />
+                  {session.user.name || 'Profile'}
+                </Link>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="w-full text-left px-4 py-2 text-foreground hover:bg-muted rounded transition"
+                >
+                  <LogOut className="w-4 h-4 inline mr-2" />
+                  Đăng xuất
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="block px-4 py-2 text-foreground hover:bg-muted rounded transition"
+              >
+                <User className="w-4 h-4 inline mr-2" />
+                Đăng nhập
+              </Link>
+            )}
           </nav>
         )}
       </div>
