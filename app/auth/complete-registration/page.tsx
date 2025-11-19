@@ -3,13 +3,13 @@
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lock, Phone, Eye, EyeOff, Mail, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { signIn } from 'next-auth/react'
 
-export default function CompleteRegistrationPage() {
+function CompleteRegistrationForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
@@ -259,5 +259,27 @@ export default function CompleteRegistrationPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function CompleteRegistrationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <div className="flex-1 flex items-center justify-center py-12 px-4">
+          <div className="w-full max-w-md">
+            <div className="bg-card rounded-lg shadow-lg p-8">
+              <div className="text-center">
+                <p className="text-muted-foreground">Đang tải...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <CompleteRegistrationForm />
+    </Suspense>
   )
 }
